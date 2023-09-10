@@ -1,12 +1,15 @@
 import os
 import random
 import string
+import csv
+import io
 
 import sqlite3
 from datetime import datetime
 
 from flask import (
-    Flask, send_from_directory, render_template, redirect, request
+    Flask, send_from_directory, render_template, redirect, request, send_file,
+    url_for
 )
 
 
@@ -41,6 +44,27 @@ def get_shorten_url(length=6):
 # @app.route('/static/<path:path>')
 # def serve_static(path):
 #     return send_from_directory('static', path)
+
+
+@app.route('/divos/export', methods=['GET'])
+def export():
+    with SQLiteContext() as (con, cur):
+        maps = cur.execute(
+            'SELECT * FROM mappings'
+        )
+        rows = maps.fetchall()
+    with io.StringIO() as file:
+        writer = csv.writer(file)
+        writer.writerow(('long', 'short'))
+        for row in rows:
+            writer.writerow(row)
+        mem = io.BytesIO()
+        mem.write(file.getvalue().encode())
+        mem.seek(0)
+    return send_file(
+        mem, as_attachment=True, download_name='mappings.csv',
+        mimetype='text/csv'
+    )
 
 
 @app.route('/divos/shorten', methods=['GET', 'POST'])
@@ -86,6 +110,52 @@ def url_redirect(short_url):
     if len(res) == 1:
         return redirect(res[0][0])
     return 'Not found', 404
+
+
+@app.route('/<short_url>/edit', methods=['GET', 'POST'])
+def edit(short_url):
+    if request.method == 'POST':
+        new_url = request.form['url']
+        with SQLiteContext() as (con, cur):
+            cur.execute(
+                'UPDATE mappings SET long=? WHERE short=?',
+                [new_url, short_url]
+            )
+            con.commit()
+        return redirect(url_for('home'))
+
+    with SQLiteContext() as (con, cur):
+        res = cur.execute(
+            "SELECT long FROM mappings WHERE short=?", [short_url]
+        )
+        res = res.fetchall()
+    if len(res) != 1:
+        return 'Not found', 404
+    return render_template(
+        'update.html', short_url=short_url, long_url=res[0][0]
+    )
+
+
+@app.route('/<short_url>/delete', methods=['GET', 'POST'])
+def delete(short_url):
+    if request.method == 'POST':
+        with SQLiteContext() as (con, cur):
+            cur.execute(
+                "DELETE FROM mappings WHERE short=?", [short_url]
+            )
+            con.commit()
+        return redirect(url_for('home'))
+
+    with SQLiteContext() as (con, cur):
+        res = cur.execute(
+            "SELECT long FROM mappings WHERE short=?", [short_url]
+        )
+        res = res.fetchall()
+    if len(res) != 1:
+        return 'Not found', 404
+    return render_template(
+        'delete.html', short_url=short_url, long_url=res[0][0]
+    )
 
 
 @app.route('/<short_url>/stats')
