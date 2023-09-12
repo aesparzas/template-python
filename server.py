@@ -253,4 +253,4 @@ def stats(short_url):
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=port)
+    app.run(port=port)
