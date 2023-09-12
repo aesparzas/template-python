@@ -16,8 +16,12 @@
             <div class="card-body">
                 <form method="post" class="form">
                     <div class="form-group mb-2">
-                        <label for="id_url">Nueva URL</label>
-                        <input type="url" class="form-control" name="url" id="id_url" value="{{ long_url }}">
+                        <label for="id_url">URL</label>
+                        <input type="url" class="form-control" required name="url" id="id_url" value="{{ long_url }}">
+                    </div>
+                    <div class="form-group mb-2">
+                        <label for="id_description">Descripción</label>
+                        <input type="text" class="form-control" name="description" id="id_description" value="{{ descr }}">
                     </div>
                     <input type="submit" class="btn btn-primary">
                 </form>
