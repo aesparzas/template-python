@@ -11,6 +11,7 @@ from flask import (
     Flask, send_from_directory, render_template, redirect, request, send_file,
     url_for
 )
+from flask_cors import CORS
 
 
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
@@ -29,11 +30,12 @@ class SQLiteContext:
 
 
 app = Flask(__name__)
+CORS(app)
 port = int(os.environ.get("PORT", 5000))
 
 
 with SQLiteContext() as (con, cur):
-    cur.execute('CREATE TABLE IF NOT EXISTS mappings(long, short, descr)')
+    cur.execute('CREATE TABLE IF NOT EXISTS mappings(long, short, nmbr, descr)')
     cur.execute('CREATE TABLE IF NOT EXISTS logs(dttm, platform, short)')
     cur.execute('CREATE TABLE IF NOT EXISTS wamessage(message)')
 
@@ -45,36 +47,58 @@ def get_shorten_url(length=6):
 
 
 def generic_descr_from_url(long_url):
-    site = long_url.split('/')[2]
+    split_by_slash = long_url.split('/')
+    site = split_by_slash[2]
+    nmbr = None
+    if site == 'wa.me':
+        nmbr = split_by_slash[3].split('?')[0]
     args = long_url.split('?')
-    if not len(args) > 1:
-        return site
+    if not len(args) > 1:  # there are no arguments
+        return nmbr, site
     text = args[1].split(',')
     if not len(text) > 1 or len(text[1]) > 25:
-        return site
+        return nmbr, site
     name = text[1].replace('%20', ' ').strip()
-    return f'{site} para {name}'
+    return nmbr, f'{site} para {name}'
 
 
-def save_on_db(long_url, short_url, descr):
+def save_on_db(long_url, short_url, nmbr, descr):
+    existing = False
     with SQLiteContext() as (con, cur):
+        res = cur.execute(
+            'SELECT short FROM mappings WHERE nmbr=?', [nmbr]
+        )
+        res = res.fetchall()
+        if res:
+            existing = True
+            return existing, res[0][0]
+        res = cur.execute(
+            'SELECT short FROM mappings WHERE long=?', [long_url]
+        )
+        res = res.fetchall()
+        if res:
+            existing = True
+            return existing, res[0][0]
         res = cur.execute(
             'SELECT long FROM mappings WHERE short=?', [short_url]
         )
         res = res.fetchall()
         while res:
+            existing = True
             short_url = get_shorten_url()
             res = cur.execute(
                 'SELECT long FROM mappings WHERE short=?', [short_url]
             )
             res = res.fetchall()
-        descr = descr or generic_descr_from_url(long_url)
+        n, d = generic_descr_from_url(long_url)
+        nmbr = nmbr or n
+        descr = descr or d
         cur.execute(
-            'INSERT INTO mappings VALUES (?, ?, ?)',
-            (long_url, short_url, descr)
+            'INSERT INTO mappings VALUES (?, ?, ?, ?)',
+            (long_url, short_url, nmbr, descr)
         )
         con.commit()
-    return short_url
+    return existing, short_url
 
 
 # @app.route('/static/<path:path>')
@@ -91,7 +115,7 @@ def export():
         rows = maps.fetchall()
     with io.StringIO() as file:
         writer = csv.writer(file)
-        writer.writerow(('long', 'short', 'description'))
+        writer.writerow(('long', 'short', 'nmbr', 'description'))
         for row in rows:
             writer.writerow(row)
         mem = io.BytesIO()
@@ -108,12 +132,14 @@ def home():
     if request.method == 'POST':
         data = request.form or request.json
         long_url = data['long-url']
-        descr = data.get('description', '')
+        descr = data.get('description')
+        nmbr = data.get('nmbr')
         short_url = data.get('short-url', get_shorten_url())
-        short_url = save_on_db(long_url, short_url, descr)
+        short_url = save_on_db(long_url, short_url, nmbr, descr)
 
         return render_template(
-            'success.html', short_url=request.url_root + short_url
+            'success.html', exists=short_url[0],
+            short_url=request.url_root + short_url[1]
         )
     return render_template('index.html')
 
@@ -136,10 +162,11 @@ def shorten_wame():
             text = text.replace(' ', '%20')
             text = text.replace('<nombre>', name)
         link = f'https://wa.me/{phone}/?text={text}'
-        short_url = save_on_db(link, get_shorten_url(), '')
+        exists, short_url = save_on_db(link, get_shorten_url(), phone, None)
 
         return render_template(
-            'success.html', short_url=request.url_root + short_url
+            'success.html', exists=exists,
+            short_url=request.url_root + short_url
         )
 
     with SQLiteContext() as (con, cur):
@@ -229,6 +256,14 @@ def delete(short_url):
 
 @app.route('/<short_url>/stats')
 def stats(short_url):
+    date_gte = request.args.get("since", "")
+
+    str_query = 'SELECT platform, count(*) AS count FROM logs WHERE short=?'
+    params = [short_url]
+    if date_gte:
+        str_query += ' AND date(dttm)>=date(?)'
+        params.append(date_gte)
+    str_query += ' GROUP BY platform'
     context = dict()
     platforms = dict()
     total_count = 0
@@ -237,13 +272,20 @@ def stats(short_url):
             'SELECT long, descr FROM mappings WHERE short=?', [short_url]
         )
         query = query.fetchall()
-        res = cur.execute(
-            'SELECT platform, count(*) AS count FROM logs WHERE short=? GROUP BY platform', [short_url]
-        )
+        res = cur.execute(str_query, params)
         for platform, count in res:
             platforms[platform] = count
             total_count += count
 
+    now = datetime.now().date()
+    year = now.year
+    month = str(now.month).zfill(2)
+    day = now.day
+    dow = now.weekday()
+    context['today'] = f'{year}-{month}-{(str(day)).zfill(2)}'
+    context['week'] = f'{year}-{month}-{(str(day-dow)).zfill(2)}'
+    context['month'] = f'{year}-{month}-01'
+    context['year'] = f'{year}-01-01'
     context['long_url'] = query[0][0]
     context['descr'] = query[0][1]
     context['short_url'] = short_url
