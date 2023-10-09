@@ -5,7 +5,7 @@ import csv
 import io
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import (
     Flask, send_from_directory, render_template, redirect, request, send_file,
@@ -280,10 +280,9 @@ def stats(short_url):
     now = datetime.now().date()
     year = now.year
     month = str(now.month).zfill(2)
-    day = now.day
     dow = now.weekday()
-    context['today'] = f'{year}-{month}-{(str(day)).zfill(2)}'
-    context['week'] = f'{year}-{month}-{(str(day-dow)).zfill(2)}'
+    context['today'] = now.isoformat()
+    context['week'] = f'{(now - timedelta(days=dow)).isoformat()}'
     context['month'] = f'{year}-{month}-01'
     context['year'] = f'{year}-01-01'
     context['long_url'] = query[0][0]
