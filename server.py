@@ -29,9 +29,10 @@ class SQLiteContext:
         self.con.close()
 
 
+port = int(os.environ.get("PORT", 5000))
+root_url = os.environ.get("ROOT_URL")
 app = Flask(__name__)
 CORS(app)
-port = int(os.environ.get("PORT", 5000))
 
 
 with SQLiteContext() as (con, cur):
@@ -139,7 +140,7 @@ def home():
 
         return render_template(
             'success.html', exists=short_url[0],
-            short_url=request.url_root + short_url[1]
+            short_url=(root_url or request.url_root) + short_url[1]
         )
     return render_template('index.html')
 
@@ -166,7 +167,7 @@ def shorten_wame():
 
         return render_template(
             'success.html', exists=exists,
-            short_url=request.url_root + short_url
+            short_url=(root_url or request.url_root) + short_url
         )
 
     with SQLiteContext() as (con, cur):
