@@ -21,7 +21,8 @@ DATABASE_CONFIGS = {
     'host': os.environ.get('DB_HOST'),
     'user': os.environ.get('DB_USER'),
     'password': os.environ.get('DB_PASS'),
-    'port': os.environ.get('DB_PORT')
+    'port': os.environ.get('DB_PORT'),
+    'url': os.environ.get('DB_URL'),
 }
 DATABASE_DEFAULT = os.path.join(PROJECT_ROOT, 'mappings.db')
 
@@ -29,14 +30,7 @@ DATABASE_DEFAULT = os.path.join(PROJECT_ROOT, 'mappings.db')
 class DBContext:
     def __enter__(self):
         if all([bool(v) for v in DATABASE_CONFIGS.values()]):
-            self.con = psycopg.connect(
-                dbname=DATABASE_CONFIGS['name'],
-                host=DATABASE_CONFIGS['host'],
-                user=DATABASE_CONFIGS['user'],
-                password=DATABASE_CONFIGS['password'],
-                port=DATABASE_CONFIGS['port'],
-                sslmode='require',
-            )
+            self.con = psycopg.connect(DATABASE_CONFIGS['url'])
         else:
             self.con = sqlite3.connect(DATABASE_DEFAULT)
         self.cur = self.con.cursor()
