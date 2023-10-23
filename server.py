@@ -35,7 +35,7 @@ class DBContext:
                 user=DATABASE_CONFIGS['user'],
                 password=DATABASE_CONFIGS['password'],
                 port=DATABASE_CONFIGS['port'],
-                sslmode='require'
+                sslmode='disable'
             )
         else:
             self.con = sqlite3.connect(DATABASE_DEFAULT)
