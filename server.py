@@ -12,7 +12,7 @@ from flask import (
     url_for
 )
 from flask_cors import CORS
-import psycopg2
+import psycopg
 
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
 PLATFORMS = ['android', 'ios', 'iphone', 'windows', 'macintosh', 'macos']
@@ -29,7 +29,7 @@ DATABASE_DEFAULT = os.path.join(PROJECT_ROOT, 'mappings.db')
 class DBContext:
     def __enter__(self):
         if all([bool(v) for v in DATABASE_CONFIGS.values()]):
-            self.con = psycopg2.connect(
+            self.con = psycopg.connect(
                 database=DATABASE_CONFIGS['name'],
                 host=DATABASE_CONFIGS['host'],
                 user=DATABASE_CONFIGS['user'],
@@ -40,7 +40,7 @@ class DBContext:
         else:
             self.con = sqlite3.connect(DATABASE_DEFAULT)
         self.cur = self.con.cursor()
-        if isinstance(self.con, psycopg2.extensions.connection):
+        if isinstance(self.con, psycopg.extensions.connection):
             self.param_char = "%s"
         else:
             self.param_char = "?"
@@ -191,7 +191,7 @@ def home():
         short_url = data.get('short-url', get_shorten_url())
         try:
             short_url = save_on_db(long_url, short_url, nmbr, descr)
-        except (sqlite3.IntegrityError, psycopg2.IntegrityError):
+        except (sqlite3.IntegrityError, psycopg.IntegrityError):
             return "Request Error", 400
 
         return render_template(
@@ -223,7 +223,7 @@ def shorten_wame():
             exists, short_url = save_on_db(
                 link, get_shorten_url(), phone, None
             )
-        except (sqlite3.IntegrityError, psycopg2.IntegrityError):
+        except (sqlite3.IntegrityError, psycopg.IntegrityError):
             return "Request Error", 400
 
         return render_template(
