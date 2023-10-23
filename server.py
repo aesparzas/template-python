@@ -30,7 +30,7 @@ class DBContext:
     def __enter__(self):
         if all([bool(v) for v in DATABASE_CONFIGS.values()]):
             self.con = psycopg.connect(
-                database=DATABASE_CONFIGS['name'],
+                dbname=DATABASE_CONFIGS['name'],
                 host=DATABASE_CONFIGS['host'],
                 user=DATABASE_CONFIGS['user'],
                 password=DATABASE_CONFIGS['password'],
@@ -40,7 +40,7 @@ class DBContext:
         else:
             self.con = sqlite3.connect(DATABASE_DEFAULT)
         self.cur = self.con.cursor()
-        if isinstance(self.con, psycopg.extensions.connection):
+        if isinstance(self.con, psycopg.Connection):
             self.param_char = "%s"
         else:
             self.param_char = "?"
