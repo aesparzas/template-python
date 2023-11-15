@@ -13,6 +13,7 @@ from flask import (
 )
 from flask_cors import CORS
 import psycopg
+import pandas as pd
 
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
 PLATFORMS = ['android', 'ios', 'iphone', 'windows', 'macintosh', 'macos']
@@ -193,6 +194,18 @@ def home():
             short_url=(root_url or request.url_root) + short_url[1]
         )
     return render_template('index.html')
+
+
+@app.route(f'/{admin_site}/search', methods=['POST', 'GET'])
+def search():
+    with DBContext() as (con, cur, param_char):
+        MAPPINGS_DF = pd.read_sql('SELECT short, descr FROM mappings', con)
+    return render_template(
+        "search.html",
+        items=MAPPINGS_DF.to_dict('records'),
+        root_url=root_url or request.url_root
+    )
+
 
 
 @app.route(f'/{admin_site}/wame', methods=['POST', 'GET'])
