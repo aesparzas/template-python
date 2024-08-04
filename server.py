@@ -73,9 +73,9 @@ with DBContext() as (con, cur, param_char):
                 'descr VARCHAR(1000)'
                 ')')
     cur.execute('CREATE TABLE IF NOT EXISTS logs('
-                'dttm TIMESTAMP, '
                 'platform VARCHAR(10), '
-                'short VARCHAR(16)'
+                'short VARCHAR(16), '
+                'dttm TIMESTAMP'
                 ')')
     cur.execute('CREATE TABLE IF NOT EXISTS wamessage(message VARCHAR(1000))')
 
@@ -266,6 +266,7 @@ def url_redirect(short_url):
     if len(short_url) != default_length:
         return 'Not Found', 404
     now = datetime.now(ZoneInfo('America/Mexico_City'))
+    now = now.isoformat().replace('T', ' ')[:19]
     with DBContext() as (con, cur, param_char):
         res = cur.execute(
             f"SELECT long FROM mappings WHERE short={param_char}", [short_url]
@@ -281,7 +282,7 @@ def url_redirect(short_url):
         cur.execute(
             "INSERT INTO logs VALUES ("
             f"{param_char}, {param_char}, {param_char})",
-            [now, platform, short_url]
+            [platform, short_url, now]
         )
 
     if len(res) == 1:
