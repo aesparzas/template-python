@@ -5,15 +5,26 @@ import csv
 import io
 import sqlite3
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from dateutil.relativedelta import relativedelta
 
+from dotenv import load_dotenv
 from flask import (
-    Flask, send_from_directory, render_template, redirect, request, send_file,
+    Flask, 
+    # send_from_directory, 
+    render_template, 
+    redirect, 
+    request, 
+    send_file,
     url_for
 )
 from flask_cors import CORS
 import psycopg
 import pandas as pd
+
+
+load_dotenv()
+
 
 PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
 PLATFORMS = ['android', 'ios', 'iphone', 'windows', 'macintosh', 'macos']
@@ -45,7 +56,7 @@ class DBContext:
         self.con.commit()
         self.con.close()
 
-
+default_length = int(os.environ.get("SHORT_LENGTH", 6))
 port = int(os.environ.get("PORT", 5000))
 root_url = os.environ.get("ROOT_URL")
 admin_site = os.environ.get('ADMIN_SITE', 'admin')
@@ -62,14 +73,14 @@ with DBContext() as (con, cur, param_char):
                 'descr VARCHAR(1000)'
                 ')')
     cur.execute('CREATE TABLE IF NOT EXISTS logs('
-                'dttm DATE, '
+                'dttm TIMESTAMP, '
                 'platform VARCHAR(10), '
                 'short VARCHAR(16)'
                 ')')
     cur.execute('CREATE TABLE IF NOT EXISTS wamessage(message VARCHAR(1000))')
 
 
-def get_shorten_url(length=6):
+def get_shorten_url(length=default_length):
     if length > max_length:
         raise EnvironmentError(
             'desired length is greater than max length allowed'
@@ -252,7 +263,9 @@ def shorten_wame():
 
 @app.route('/<short_url>')
 def url_redirect(short_url):
-    now = datetime.now()
+    if len(short_url) != default_length:
+        return 'Not Found', 404
+    now = datetime.now(ZoneInfo('America/Mexico_City'))
     with DBContext() as (con, cur, param_char):
         res = cur.execute(
             f"SELECT long FROM mappings WHERE short={param_char}", [short_url]
@@ -358,7 +371,7 @@ def stats(short_url):
 
     if not query:
         return "Not Found", 404
-    now = datetime.now().date()
+    now = datetime.now(ZoneInfo('America/Mexico_City')).date()
     year = now.year
     month = str(now.month).zfill(2)
     dow = now.weekday()
