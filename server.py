@@ -295,7 +295,7 @@ def url_redirect(short_url):
     return 'Not found', 404
 
 
-@app.route('/<short_url>/edit', methods=['GET', 'POST'])
+@app.route(f'/<short_url>/{admin_site}/edit', methods=['GET', 'POST'])
 def edit(short_url):
     if request.method == 'POST':
         data = request.form or request.json
