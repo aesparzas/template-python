@@ -11,7 +11,7 @@ from dateutil.relativedelta import relativedelta
 from dotenv import load_dotenv
 from flask import (
     Flask, 
-    # send_from_directory, 
+    send_from_directory, 
     render_template, 
     redirect, 
     request, 
@@ -150,9 +150,9 @@ def save_on_db(long_url, short_url, nmbr, descr):
     return existing, short_url
 
 
-# @app.route('/static/<path:path>')
-# def serve_static(path):
-#     return send_from_directory('static', path)
+@app.route('/static/<path:path>')
+def serve_static(path):
+    return send_from_directory('static', path)
 
 
 @app.route(f'/{admin_site}/export', methods=['GET'])
@@ -204,6 +204,11 @@ def home():
             'success.html', exists=short_url[0],
             short_url=(root_url or request.url_root) + short_url[1]
         )
+    return render_template('home.html')
+
+
+@app.route('/', methods=['GET'])
+def index():
     return render_template('index.html')
 
 
@@ -286,7 +291,7 @@ def url_redirect(short_url):
         )
 
     if len(res) == 1:
-        return redirect(res[0][0].replace("\n", ""))
+        return render_template('index.html', redirect=res[0][0].replace("\n", ""))
     return 'Not found', 404
 
 
