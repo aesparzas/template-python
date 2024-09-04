@@ -325,7 +325,7 @@ def edit(short_url):
     )
 
 
-@app.route('/<short_url>/delete', methods=['GET', 'POST'])
+@app.route(f'/<short_url>/{admin_site}/delete', methods=['GET', 'POST'])
 def delete(short_url):
     if request.method == 'POST':
         with DBContext() as (con, cur, param_char):
